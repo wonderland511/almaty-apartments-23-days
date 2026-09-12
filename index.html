@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Алматы: варианты квартир на 23 дня (21.09–14.10.2026)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    --bg:#f5f5f7; --bg2:#ffffff; --text:#1d1d1f; --text2:#6e6e73;
+    --accent:#0071e3; --accent2:#0077ED; --border:#e5e5e7;
+    --card:#ffffff; --shadow:0 2px 14px rgba(0,0,0,.06);
+    --shadow-hover:0 10px 30px rgba(0,0,0,.10);
+    --good:#1d7a3e; --good-bg:#e9f7ee; --bad:#b3261e; --bad-bg:#fdecec;
+    --note-bg:#fff7e0; --note-border:#f0d98c;
+    --radius:20px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#000000; --bg2:#1c1c1e; --text:#f5f5f7; --text2:#a1a1a6;
+      --accent:#2997ff; --accent2:#409cff; --border:#2c2c2e;
+      --card:#1c1c1e; --shadow:0 2px 14px rgba(0,0,0,.4);
+      --shadow-hover:0 10px 30px rgba(0,0,0,.55);
+      --good:#4ade80; --good-bg:#0f2a1a; --bad:#f87171; --bad-bg:#2b1414;
+      --note-bg:#2b2410; --note-border:#5c4d16;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#000000; --bg2:#1c1c1e; --text:#f5f5f7; --text2:#a1a1a6;
+    --accent:#2997ff; --accent2:#409cff; --border:#2c2c2e;
+    --card:#1c1c1e; --shadow:0 2px 14px rgba(0,0,0,.4);
+    --shadow-hover:0 10px 30px rgba(0,0,0,.55);
+    --good:#4ade80; --good-bg:#0f2a1a; --bad:#f87171; --bad-bg:#2b1414;
+    --note-bg:#2b2410; --note-border:#5c4d16;
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;
+  }
+  a{color:var(--accent); text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 20px 80px;}
+  header.hero{padding:64px 20px 40px; text-align:center;}
+  header.hero h1{
+    font-size:clamp(32px,5vw,52px); font-weight:700; letter-spacing:-.02em;
+    margin:0 0 14px; max-width:820px; margin-left:auto; margin-right:auto;
+  }
+  header.hero p.sub{color:var(--text2); font-size:18px; margin:0 0 28px;}
+  .theme-toggle{
+    position:fixed; top:16px; right:16px; z-index:50;
+    width:44px; height:44px; border-radius:50%; border:1px solid var(--border);
+    background:var(--card); color:var(--text); font-size:18px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow);
+  }
+  .callout{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:22px 26px; margin:0 auto 16px; max-width:900px; text-align:left; box-shadow:var(--shadow);
+  }
+  .callout h3{margin:0 0 8px; font-size:16px; font-weight:700;}
+  .callout p{margin:0; color:var(--text2); font-size:15px;}
+  .callout.note{background:var(--note-bg); border-color:var(--note-border);}
+  .callout.note p{color:var(--text);}
+
+  section{margin:56px 0;}
+  h2.section-title{font-size:clamp(24px,3.4vw,34px); font-weight:700; letter-spacing:-.02em; margin:0 0 20px;}
+
+  /* overview map */
+  #overview-map{height:420px; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); border:1px solid var(--border);}
+  .map-fallback{font-size:13px; color:var(--text2); margin-top:8px;}
+
+  /* table */
+  .table-scroll{overflow-x:auto; border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow); background:var(--card);}
+  table{border-collapse:collapse; width:100%; min-width:920px; font-size:14.5px;}
+  thead th{
+    position:sticky; top:0; background:var(--card); text-align:left; font-weight:600;
+    padding:14px 16px; border-bottom:1px solid var(--border); color:var(--text2); font-size:13px;
+    text-transform:uppercase; letter-spacing:.02em;
+  }
+  tbody td{padding:14px 16px; border-bottom:1px solid var(--border); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr{transition:background .15s ease;}
+  tbody tr:hover{background:rgba(0,113,227,.06);}
+  .row-addr{font-weight:600;}
+  .row-tag{display:inline-block; font-size:11.5px; color:var(--text2); margin-top:2px;}
+  .price-cell{font-weight:700; white-space:nowrap;}
+  .price-sub{display:block; font-weight:400; font-size:12.5px; color:var(--text2);}
+  .table-link{white-space:nowrap;}
+
+  /* cards */
+  .cards-grid{display:grid; grid-template-columns:1fr; gap:28px;}
+  @media(min-width:860px){.cards-grid{grid-template-columns:1fr 1fr;}}
+  .pcard{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column;
+    animation:fadeInUp .6s ease-out both; transition:box-shadow .25s ease, transform .25s ease;
+  }
+  .pcard:hover{box-shadow:var(--shadow-hover); transform:translateY(-2px);}
+  @keyframes fadeInUp{ from{opacity:0; transform:translateY(18px);} to{opacity:1; transform:translateY(0);} }
+  @media (prefers-reduced-motion: reduce){ .pcard{animation:none; opacity:1; transform:none;} .pcard:hover{transform:none;} }
+
+  /* carousel */
+  .carousel{position:relative; aspect-ratio:4/3; background:var(--bg); overflow:hidden;}
+  .carousel-track{display:flex; height:100%; transition:transform .35s cubic-bezier(.4,0,.2,1);}
+  .carousel-track img{width:100%; height:100%; object-fit:cover; flex-shrink:0; background:var(--bg);}
+  .carousel-btn{
+    position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border-radius:50%;
+    background:rgba(0,0,0,.45); color:#fff; border:none; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:20px; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  }
+  .carousel-btn:hover{background:rgba(0,0,0,.65);}
+  .carousel-btn.prev{left:10px;} .carousel-btn.next{right:10px;}
+  .carousel-dots{position:absolute; bottom:12px; left:0; right:0; display:flex; justify-content:center; gap:6px;}
+  .carousel-dots button{width:7px; height:7px; border-radius:50%; border:none; background:rgba(255,255,255,.5); cursor:pointer; padding:0;}
+  .carousel-dots button.active{background:#fff; width:18px; border-radius:4px;}
+  .carousel-counter{
+    position:absolute; top:10px; right:10px; background:rgba(0,0,0,.5); color:#fff; font-size:12px;
+    padding:3px 9px; border-radius:20px; backdrop-filter:blur(4px);
+  }
+  .badge-monthly{
+    position:absolute; top:10px; left:10px; background:var(--accent); color:#fff; font-size:11.5px;
+    font-weight:600; padding:4px 10px; border-radius:20px;
+  }
+
+  .pcard-body{padding:22px 24px 24px; display:flex; flex-direction:column; gap:16px; flex:1;}
+  .pcard-head{display:flex; justify-content:space-between; align-items:flex-start; gap:14px;}
+  .pcard-head h3{margin:0 0 4px; font-size:19px; font-weight:700; letter-spacing:-.01em;}
+  .pcard-head .district{font-size:13px; color:var(--text2); margin:0;}
+  .pcard-price{text-align:right; white-space:nowrap;}
+  .pcard-price .day{font-size:17px; font-weight:700; color:var(--accent);}
+  .pcard-price .total{display:block; font-size:12.5px; color:var(--text2); margin-top:2px;}
+
+  .info-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; font-size:13.5px;}
+  .info-grid .k{color:var(--text2); font-size:11.5px; text-transform:uppercase; letter-spacing:.02em; margin-bottom:2px;}
+  .info-grid .full{grid-column:1/-1;}
+
+  .pros-cons{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .pros, .cons{padding:12px 14px; border-radius:14px; font-size:13.5px;}
+  .pros{background:var(--good-bg); color:var(--good);}
+  .cons{background:var(--bad-bg); color:var(--bad);}
+  .pros b, .cons b{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:4px; opacity:.85;}
+
+  .mini-map{height:200px; border-radius:14px; overflow:hidden; border:1px solid var(--border);}
+
+  .card-cta{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    background:var(--accent); color:#fff; font-weight:600; font-size:15px;
+    padding:14px 18px; border-radius:14px; margin-top:4px; min-height:48px;
+  }
+  .card-cta:hover{background:var(--accent2); text-decoration:none;}
+
+  footer{text-align:center; color:var(--text2); font-size:13px; padding:40px 20px 0;}
+  .leaflet-popup-content{font-size:13px;}
+  .leaflet-popup-content a{font-weight:600;}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" aria-label="Переключить тему" title="Светлая/тёмная тема">🌓</button>
+
+<div class="wrap">
+  <header class="hero">
+    <h1>Алматы: варианты квартир на 23 дня</h1>
+    <p class="sub">21 сентября — 14 октября 2026 · все суммы в USD</p>
+
+    <div class="callout">
+      <h3>Короткий вывод</h3>
+      <p>Если собственник согласится на 23 дня, самый сильный вариант по сочетанию площади, охраны и спорта — <b>Orion 1, Аль-Фараби 9</b> (85 м², отдельный рабочий стол плюс кухонный остров). Среди вариантов без месячного договора выделяется <b>Orion 2, Аль-Фараби 9</b> (65 м²). Самый бюджетный ориентир среди посуточных — <b>Барибаева 43/6</b>.</p>
+    </div>
+    <div class="callout note">
+      <h3>Важно по месячным вариантам</h3>
+      <p>Объявления №9 Orion 1 и №10 Koktobe City опубликованы как помесячная/долгосрочная аренда. В карточках указана полная месячная цена и расчёт 23/30 только как ориентир. Если квартира понравится — можно отдельно обсудить договор на 23 дня: собственник может согласиться на индивидуальную цену, в том числе ниже полного месяца.</p>
+    </div>
+  </header>
+
+  <section id="map-section">
+    <h2 class="section-title">Где находятся квартиры</h2>
+    <div id="overview-map" role="img" aria-label="Карта расположения всех 10 квартир в Алматы"></div>
+    <p class="map-fallback">Карта интерактивна: кликните на метку, чтобы увидеть адрес и цену. Если карта не загрузилась — координаты и ссылки есть в каждой карточке ниже.</p>
+  </section>
+
+  <section id="table-section">
+    <h2 class="section-title">Сравнение всех 10 вариантов</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#/адрес</th><th>Цена</th><th>Площадь/этаж</th><th>Охрана/доступ</th><th>Работа/спортзал ≤1 км</th><th>Объявление</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="cards-section">
+    <h2 class="section-title">Детальные карточки</h2>
+    <div class="cards-grid" id="cards-grid"></div>
+  </section>
+
+  <footer>
+    Данные из подборки на 21.09–14.10.2026 · фото и координаты — с реальных объявлений Krisha.kz · цены могут измениться, уточняйте у собственника.
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var APTS = [{"n": 1, "id": "1015027307", "title": "2-комнатная, 76 м², 6/9", "addr": "Бекхожина 3/1", "area": "76 м²", "floor": "6/9", "district": "Медеуский район, зона Достык / Терренкур | ЖК Raaf Park", "price_day": "$75/сутки", "price_total": "$1,734", "price_label": "ориентир за 23 дня", "deposit": "$75, возвратный (примерно одна ночь)", "security": "Контролируемый доступ: видеодомофон и электронные замки.", "infra": "Рядом Достык Плаза, Терренкур, Дворец Республики, Дворец школьников; метро Абая примерно в 0.8 км.", "gym": "—", "work": "Рабочий стол указан в дополнительной карточке Raaf Park.", "cond": "До 4 гостей; есть кондиционер, посудомоечная машина, стиральная машина. Без вечеринок и курения.", "pros": "Просторные 76 м²; сильная центральная локация; посудомоечная машина и кондиционер; удобна для длительного проживания.", "cons": "Депозит равен одной ночи.", "photos": ["https://krisha-photos.kcdn.online/webp/0c/0ca24dbf-dde7-4d26-891f-e5d2fdbd1481/31-full.jpg", "https://krisha-photos.kcdn.online/webp/0c/0ca24dbf-dde7-4d26-891f-e5d2fdbd1481/32-full.jpg", "https://krisha-photos.kcdn.online/webp/0c/0ca24dbf-dde7-4d26-891f-e5d2fdbd1481/33-full.jpg", "https://krisha-photos.kcdn.online/webp/0c/0ca24dbf-dde7-4d26-891f-e5d2fdbd1481/34-full.jpg", "https://krisha-photos.kcdn.online/webp/0c/0ca24dbf-dde7-4d26-891f-e5d2fdbd1481/35-full.jpg", "https://krisha-photos.kcdn.online/webp/0c/0ca24dbf-dde7-4d26-891f-e5d2fdbd1481/36-full.jpg"], "lat": "43.246127391108", "lon": "76.960611235121", "url": "https://krisha.kz/a/show/1015027307", "monthly": false}, {"n": 2, "id": "1005514237", "title": "3-комнатная, 70 м², 13/18", "addr": "Кунаева 15/1", "area": "70 м²", "floor": "13/18", "district": "Медеуский район, центр / Райымбека — Кунаева | ЖК Айсулу", "price_day": "$78/сутки", "price_total": "$1,785", "price_label": "ориентир за 23 дня", "deposit": "$44, возвратный; предоплата для брони около $44", "security": "Домофон и электронные замки.", "infra": "Центр: Арбат, ЦУМ/ГУМ, Mega Park, парк 28 панфиловцев, кафе, супермаркеты и метро в пешей доступности.", "gym": "Brutal Gym — ориентировочно 0.3–0.4 км пешком.", "work": "—", "cond": "До 6 гостей; есть кондиционер и посудомоечная машина. Без курения, вечеринок и шума после 22:00.", "pros": "3 комнаты и размещение до 6 гостей; очень центральная локация; небольшой депозит; спортзал рядом.", "cons": "70 м² для 3 комнат довольно компактно; действуют ограничения по шуму.", "photos": ["https://krisha-photos.kcdn.online/webp/b2/b295eeb3-d5f2-4165-81a3-e0d688c2c27a/1-full.jpg", "https://krisha-photos.kcdn.online/webp/b2/b295eeb3-d5f2-4165-81a3-e0d688c2c27a/2-full.jpg", "https://krisha-photos.kcdn.online/webp/b2/b295eeb3-d5f2-4165-81a3-e0d688c2c27a/3-full.jpg", "https://krisha-photos.kcdn.online/webp/b2/b295eeb3-d5f2-4165-81a3-e0d688c2c27a/4-full.jpg", "https://krisha-photos.kcdn.online/webp/b2/b295eeb3-d5f2-4165-81a3-e0d688c2c27a/5-full.jpg", "https://krisha-photos.kcdn.online/webp/b2/b295eeb3-d5f2-4165-81a3-e0d688c2c27a/6-full.jpg"], "lat": "43.269243844908", "lon": "76.946638226509", "url": "https://krisha.kz/a/show/1005514237", "monthly": false}, {"n": 3, "id": "676001518", "title": "2-комнатная, 55 м², 10/11", "addr": "Барибаева 43/6", "area": "55 м²", "floor": "10/11", "district": "Медеуский район, Старый центр / Зелёный базар | Дом 2018 года", "price_day": "$55/сутки", "price_total": "$1,275", "price_label": "ориентир за 23 дня", "deposit": "$33, возвратный", "security": "Домофон и электронные замки; парковка рядом.", "infra": "Рядом парк Горького, парк 28 панфиловцев, Зелёный базар, фабрика Рахат, КазНПУ им. Абая и филармония.", "gym": "East Boxing Gym — в этом же доме/комплексе, ориентировочно до 0.2 км.", "work": "Отдельный рабочий стол или остров не заявлен.", "cond": "До 3 гостей; заезд 14:00, выезд 12:00. Есть кондиционер, стиральная машина, интернет. Срок проживания гибкий; цена в выходные и праздники может меняться.", "pros": "Самый низкий ориентир среди посуточных вариантов; центральные парки и Зелёный базар рядом; тихие окна во двор.", "cons": "55 м²; нет посудомоечной машины в заявленных удобствах; итог за 23 дня может измениться из-за выходных тарифов.", "photos": ["https://krisha-photos.kcdn.online/webp/53/530b2f2c-7acd-4bee-b838-02cd5d4a02ec/3-full.jpg", "https://krisha-photos.kcdn.online/webp/53/530b2f2c-7acd-4bee-b838-02cd5d4a02ec/1-full.jpg", "https://krisha-photos.kcdn.online/webp/53/530b2f2c-7acd-4bee-b838-02cd5d4a02ec/2-full.jpg", "https://krisha-photos.kcdn.online/webp/53/530b2f2c-7acd-4bee-b838-02cd5d4a02ec/4-full.jpg", "https://krisha-photos.kcdn.online/webp/53/530b2f2c-7acd-4bee-b838-02cd5d4a02ec/5-full.jpg", "https://krisha-photos.kcdn.online/webp/53/530b2f2c-7acd-4bee-b838-02cd5d4a02ec/6-full.jpg"], "lat": "43.258728", "lon": "76.962345", "url": "https://krisha.kz/a/show/676001518", "monthly": false}, {"n": 4, "id": "697016339", "title": "2-комнатная, 54 м², 10/12", "addr": "Тулебаева 49/1", "area": "54 м²", "floor": "10/12", "district": "Медеуский район, центр / Гоголя — Тулебаева | ЖК Молодёжный на Тулебаева", "price_day": "$62/сутки", "price_total": "$1,428", "price_label": "ориентир за 23 дня", "deposit": "$55, возвратный", "security": "Домофон.", "infra": "Центральная локация с развитой городской инфраструктурой; метро Жибек Жолы примерно в 0.33 км.", "gym": "A&F Sport — ориентировочно 0.2–0.3 км пешком.", "work": "—", "cond": "До 6 гостей; заезд 14:00, выезд 12:00. Два кондиционера, интернет, стиральная машина; доступны отчётные документы. Пятница и суббота могут стоить дороже базового тарифа.", "pros": "Метро и спортзал очень близко; центр; умеренная цена; отчётные документы.", "cons": "Компактные 54 м²; только базовый домофон по данным объявления; выходные могут увеличить общий бюджет.", "photos": ["https://krisha-photos.kcdn.online/webp/65/65485b5f-ca2e-462d-8418-d644c7c8daab/12-full.jpg", "https://krisha-photos.kcdn.online/webp/65/65485b5f-ca2e-462d-8418-d644c7c8daab/13-full.jpg", "https://krisha-photos.kcdn.online/webp/65/65485b5f-ca2e-462d-8418-d644c7c8daab/14-full.jpg", "https://krisha-photos.kcdn.online/webp/65/65485b5f-ca2e-462d-8418-d644c7c8daab/15-full.jpg", "https://krisha-photos.kcdn.online/webp/65/65485b5f-ca2e-462d-8418-d644c7c8daab/16-full.jpg", "https://krisha-photos.kcdn.online/webp/65/65485b5f-ca2e-462d-8418-d644c7c8daab/17-full.jpg"], "lat": "43.260884293516", "lon": "76.947101643367", "url": "https://krisha.kz/a/show/697016339", "monthly": false}, {"n": 5, "id": "1012371654", "title": "2-комнатная, 65 м², 13/20", "addr": "Аль-Фараби 9", "area": "65 м²", "floor": "13/20", "district": "Медеуский район, Аль-Фараби / Нурлы-Тау | ЖК Orion 2", "price_day": "$66/сутки", "price_total": "$1,525", "price_label": "ориентир за 23 дня", "deposit": "не указан", "security": "Домофон, видеодомофон, электронные замки; парковка.", "infra": "Престижная зона Аль-Фараби: рядом бизнес-центр, магазины, рестораны и кафе; удобный выезд по основным магистралям.", "gym": "Royal Club Nurly Tau — ориентировочно 0.1–0.2 км пешком.", "work": "Есть кухонный остров/барная стойка.", "cond": "До 3 гостей; заезд 14:00, выезд 12:00, время можно согласовать. Кухня около 20 м²; есть посудомоечная машина, кондиционер и стиральная машина. Подходит для короткого и длительного проживания.", "pros": "Хороший баланс цены и качества; большая кухня; спортклуб почти рядом; остров для работы; сильный контроль доступа.", "cons": "Депозит не указан; только одна кровать и диван.", "photos": ["https://krisha-photos.kcdn.online/webp/32/3240bddf-8b45-4dc1-adb8-5a9150c9962d/1-full.jpg", "https://krisha-photos.kcdn.online/webp/32/3240bddf-8b45-4dc1-adb8-5a9150c9962d/2-full.jpg", "https://krisha-photos.kcdn.online/webp/32/3240bddf-8b45-4dc1-adb8-5a9150c9962d/3-full.jpg", "https://krisha-photos.kcdn.online/webp/32/3240bddf-8b45-4dc1-adb8-5a9150c9962d/4-full.jpg", "https://krisha-photos.kcdn.online/webp/32/3240bddf-8b45-4dc1-adb8-5a9150c9962d/5-full.jpg", "https://krisha-photos.kcdn.online/webp/32/3240bddf-8b45-4dc1-adb8-5a9150c9962d/6-full.jpg"], "lat": "43.230858942259", "lon": "76.946917269004", "url": "https://krisha.kz/a/show/1012371654", "monthly": false}, {"n": 6, "id": "1000879930", "title": "3-комнатная, 80 м², 10/14", "addr": "Самал-3, 15", "area": "80 м²", "floor": "10/14", "district": "Медеуский район, микрорайон Самал-3", "price_day": "$100/сутки", "price_total": "$2,295", "price_label": "ориентир за 23 дня", "deposit": "не указан", "security": "Видеодомофон и электронные замки.", "infra": "Самал-3 — развитый жилой район с магазинами и сервисами; удобный доступ к Аль-Фараби и Достык.", "gym": "Royal Club Fitness & SPA Samal — ориентировочно 0.2–0.3 км пешком.", "work": "Есть кухонная полуостровная стойка с посадочными местами, пригодная для ноутбука.", "cond": "До 8 гостей; заезд 14:00, выезд 12:00. 2 кровати и 2 дивана; есть посудомоечная машина, кондиционер, стиральная машина и интернет.", "pros": "3 комнаты, 80 м² и размещение до 8 гостей; спортзал/SPA близко; есть зона, подходящая для работы.", "cons": "Самый высокий ориентир среди посуточных вариантов; депозит не указан.", "photos": ["https://krisha-photos.kcdn.online/webp/00/00761c78-eb20-49ef-a00c-b935a772a11c/9-full.jpg", "https://krisha-photos.kcdn.online/webp/00/00761c78-eb20-49ef-a00c-b935a772a11c/10-full.jpg", "https://krisha-photos.kcdn.online/webp/00/00761c78-eb20-49ef-a00c-b935a772a11c/11-full.jpg", "https://krisha-photos.kcdn.online/webp/00/00761c78-eb20-49ef-a00c-b935a772a11c/12-full.jpg", "https://krisha-photos.kcdn.online/webp/00/00761c78-eb20-49ef-a00c-b935a772a11c/13-full.jpg", "https://krisha-photos.kcdn.online/webp/00/00761c78-eb20-49ef-a00c-b935a772a11c/14-full.jpg"], "lat": "43.228086", "lon": "76.956649", "url": "https://krisha.kz/a/show/1000879930", "monthly": false}, {"n": 7, "id": "1013278507", "title": "2-комнатная, 50 м², 14/16", "addr": "Кунаева 15/1", "area": "50 м²", "floor": "14/16", "district": "Медеуский район, центр / Райымбека — Кунаева | ЖК Айсулу", "price_day": "$67/сутки", "price_total": "$1,530", "price_label": "ориентир за 23 дня", "deposit": "не указан", "security": "не указано", "infra": "Центр города: район Арбата и Райымбека; метро, торговля, кафе и городской транспорт рядом.", "gym": "Brutal Gym — ориентировочно 0.3–0.4 км пешком.", "work": "—", "cond": "До 3 гостей; заезд 14:00, выезд 11:00. Есть кондиционер, стиральная машина, микроволновка, интернет; кухня-студия.", "pros": "Центральное расположение; спортзал близко; современный компактный вариант.", "cons": "Всего 50 м²; депозит и охрана не указаны; более ранний выезд — 11:00.", "photos": ["https://krisha-photos.kcdn.online/webp/df/dfc7135a-8d8c-4211-a2cb-af6f1909d210/1-full.jpg", "https://krisha-photos.kcdn.online/webp/df/dfc7135a-8d8c-4211-a2cb-af6f1909d210/2-full.jpg", "https://krisha-photos.kcdn.online/webp/df/dfc7135a-8d8c-4211-a2cb-af6f1909d210/3-full.jpg", "https://krisha-photos.kcdn.online/webp/df/dfc7135a-8d8c-4211-a2cb-af6f1909d210/4-full.jpg", "https://krisha-photos.kcdn.online/webp/df/dfc7135a-8d8c-4211-a2cb-af6f1909d210/5-full.jpg", "https://krisha-photos.kcdn.online/webp/df/dfc7135a-8d8c-4211-a2cb-af6f1909d210/6-full.jpg"], "lat": "43.269243844908", "lon": "76.946638226509", "url": "https://krisha.kz/a/show/1013278507", "monthly": false}, {"n": 8, "id": "1013107661", "title": "2-комнатная, 56 м², 13/16", "addr": "Кунаева 15/1", "area": "56 м²", "floor": "13/16", "district": "Медеуский район, центр / Райымбека — Кунаева | ЖК Айсулу", "price_day": "$67/сутки", "price_total": "$1,530", "price_label": "ориентир за 23 дня", "deposit": "не указан", "security": "Домофон и электронные замки; парковка рядом.", "infra": "Центр города: Арбат, Райымбека, торговые центры, кафе, общественный транспорт и метро поблизости.", "gym": "Brutal Gym — ориентировочно 0.3–0.4 км пешком.", "work": "—", "cond": "До 4 гостей; заезд 15:00, выезд 12:00. Свежий ремонт; кондиционер, стиральная машина, микроволновка и интернет. Кухня около 6 м².", "pros": "Та же сильная центральная локация; немного просторнее соседнего варианта на 14 этаже; спортзал близко.", "cons": "Маленькая кухня; депозит не указан.", "photos": ["https://krisha-photos.kcdn.online/webp/32/32bd96cb-df03-42d8-b58d-1cab0024e5eb/25-full.jpg", "https://krisha-photos.kcdn.online/webp/32/32bd96cb-df03-42d8-b58d-1cab0024e5eb/26-full.jpg", "https://krisha-photos.kcdn.online/webp/32/32bd96cb-df03-42d8-b58d-1cab0024e5eb/27-full.jpg", "https://krisha-photos.kcdn.online/webp/32/32bd96cb-df03-42d8-b58d-1cab0024e5eb/28-full.jpg", "https://krisha-photos.kcdn.online/webp/32/32bd96cb-df03-42d8-b58d-1cab0024e5eb/29-full.jpg", "https://krisha-photos.kcdn.online/webp/32/32bd96cb-df03-42d8-b58d-1cab0024e5eb/30-full.jpg"], "lat": "43.268832", "lon": "76.947271", "url": "https://krisha.kz/a/show/1013107661", "monthly": false}, {"n": 9, "id": "1015510473", "title": "2-комнатная, 85 м², 20/33", "addr": "Аль-Фараби 9 / Козыбаева", "area": "85 м²", "floor": "20/33", "district": "Медеуский район, Аль-Фараби / Нурлы-Тау | ЖК Orion 1", "price_day": "$1,663/мес.", "price_total": "~$1,275*", "price_label": "ориентир 23/30 — только если собственник согласится на 23 дня", "deposit": "не указан", "security": "Охрана, консьерж, домофон, кодовый замок, видеонаблюдение и видеодомофон.", "infra": "Бизнес-класс на Аль-Фараби; рядом магазины, рестораны, школы и деловая инфраструктура.", "gym": "Спортзал, бассейн, йога и сквош для жильцов — в самом комплексе, бесплатно по объявлению.", "work": "Есть кухонный остров/рабочая зона (по объявлению).", "cond": "Помесячная аренда. 2 санузла, лоджия, посудомоечная машина, сушильная машина, кондиционер. Если квартира понравится — предложить договор на 23 дня с индивидуальной ценой.", "pros": "Самая большая площадь — 85 м²; лучшая подтверждённая безопасность; спортзал/бассейн в ЖК; 2 санузла; бизнес-класс.", "cons": "Формат объявления — месяц; аренду ровно на 23 дня нужно согласовывать отдельно; депозит не указан.", "monthly": true, "photos": ["https://krisha-photos.kcdn.online/webp/8a/8a9af2d1-7dd3-41fb-8eef-cf638c269b89/18-full.jpg", "https://krisha-photos.kcdn.online/webp/8a/8a9af2d1-7dd3-41fb-8eef-cf638c269b89/17-full.jpg", "https://krisha-photos.kcdn.online/webp/8a/8a9af2d1-7dd3-41fb-8eef-cf638c269b89/19-full.jpg", "https://krisha-photos.kcdn.online/webp/8a/8a9af2d1-7dd3-41fb-8eef-cf638c269b89/20-full.jpg", "https://krisha-photos.kcdn.online/webp/8a/8a9af2d1-7dd3-41fb-8eef-cf638c269b89/21-full.jpg", "https://krisha-photos.kcdn.online/webp/8a/8a9af2d1-7dd3-41fb-8eef-cf638c269b89/22-full.jpg"], "lat": "43.230898027387", "lon": "76.946927999775", "url": "https://krisha.kz/a/show/1015510473"}, {"n": 10, "id": "1000133339", "title": "2-комнатная, 75 м², 3/5", "addr": "Сагадат Нурмагамбетова 142/6", "area": "75 м²", "floor": "3/5", "district": "Медеуский район, Кок-Тобе | ЖК Koktobe City", "price_day": "$1,774/мес.", "price_total": "~$1,360*", "price_label": "ориентир 23/30 — только если собственник согласится на 23 дня", "deposit": "Возвратный депозит требуется; сумма в объявлении не указана", "security": "Охрана, домофон, кодовый замок, видеонаблюдение и видеодомофон; закрытая территория.", "infra": "Тихий бизнес-класс: закрытый благоустроенный двор, наземный и подземный паркинг, большой супермаркет внутри комплекса.", "gym": "Budokan Sports & Arts — ориентировочно 0.5–0.7 км пешком.", "work": "Есть отдельный рабочий стол; по фото также кухонный остров/барная зона.", "cond": "Долгосрочная/помесячная аренда. 2 санузла, балкон, гардеробная/зона хранения, дизайнерский ремонт, высокие потолки.", "pros": "Лучший вариант для работы: отдельный стол плюс остров; закрытый охраняемый ЖК; тихая среда; супермаркет и парковка на территории.", "cons": "В объявлении акцент на долгосрочную аренду; 23 дня нужно согласовывать; сумма депозита не указана.", "monthly": true, "photos": ["https://krisha-photos.kcdn.online/webp/be/be7f9771-ac10-47ec-89a4-a4d01f586f39/11-full.jpg", "https://krisha-photos.kcdn.online/webp/be/be7f9771-ac10-47ec-89a4-a4d01f586f39/10-full.jpg", "https://krisha-photos.kcdn.online/webp/be/be7f9771-ac10-47ec-89a4-a4d01f586f39/17-full.jpg", "https://krisha-photos.kcdn.online/webp/be/be7f9771-ac10-47ec-89a4-a4d01f586f39/44-full.jpg", "https://krisha-photos.kcdn.online/webp/be/be7f9771-ac10-47ec-89a4-a4d01f586f39/18-full.jpg", "https://krisha-photos.kcdn.online/webp/be/be7f9771-ac10-47ec-89a4-a4d01f586f39/32-full.jpg"], "lat": "43.261065", "lon": "76.980733", "url": "https://krisha.kz/a/show/1000133339"}]
+;
+
+  // ---------- theme toggle ----------
+  var toggle = document.getElementById('themeToggle');
+  function applyTheme(t){
+    if(t){ document.documentElement.setAttribute('data-theme', t); }
+    else { document.documentElement.removeAttribute('data-theme'); }
+  }
+  try{
+    var saved = localStorage.getItem('almaty-theme');
+    if(saved) applyTheme(saved);
+  }catch(e){}
+  toggle.addEventListener('click', function(){
+    var cur = document.documentElement.getAttribute('data-theme');
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next;
+    if(!cur){ next = prefersDark ? 'light' : 'dark'; }
+    else if(cur === 'dark'){ next = 'light'; }
+    else { next = 'dark'; }
+    applyTheme(next);
+    try{ localStorage.setItem('almaty-theme', next); }catch(e){}
+  });
+
+  // ---------- table ----------
+  var tbody = document.getElementById('table-body');
+  APTS.forEach(function(a){
+    var tr = document.createElement('tr');
+    var priceCell = a.monthly
+      ? '<span class="price-cell">'+a.price_day+'</span><span class="price-sub">'+a.price_total+' · 23/30</span>'
+      : '<span class="price-cell">'+a.price_day+'</span><span class="price-sub">23 дня: '+a.price_total+'</span>';
+    tr.innerHTML =
+      '<td><div class="row-addr">'+a.n+'. '+a.addr+'</div><div class="row-tag">'+(a.monthly?'помесячно':'посуточно')+'</div></td>'+
+      '<td>'+priceCell+'</td>'+
+      '<td>'+a.area+'<br>'+a.floor+'</td>'+
+      '<td>'+a.security+'</td>'+
+      '<td>Работа: '+a.work+'<br>Спорт: '+a.gym+'</td>'+
+      '<td class="table-link"><a href="'+a.url+'" target="_blank" rel="noopener noreferrer">Открыть →</a></td>';
+    tbody.appendChild(tr);
+  });
+
+  // ---------- cards ----------
+  var grid = document.getElementById('cards-grid');
+  APTS.forEach(function(a){
+    var card = document.createElement('div');
+    card.className = 'pcard';
+
+    var imgs = a.photos.map(function(src, i){
+      return '<img src="'+src+'" alt="Фото квартиры: '+a.addr+', фото '+(i+1)+'" loading="'+(i===0?'eager':'lazy')+'" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">';
+    }).join('');
+    var dots = a.photos.map(function(_, i){ return '<button data-i="'+i+'" class="'+(i===0?'active':'')+'" aria-label="Фото '+(i+1)+'"></button>'; }).join('');
+
+    card.innerHTML =
+      '<div class="carousel" data-count="'+a.photos.length+'">'+
+        (a.monthly ? '<span class="badge-monthly">помесячно</span>' : '') +
+        '<div class="carousel-counter" data-counter>1/'+a.photos.length+'</div>'+
+        '<div class="carousel-track">'+imgs+'</div>'+
+        '<button class="carousel-btn prev" aria-label="Предыдущее фото">‹</button>'+
+        '<button class="carousel-btn next" aria-label="Следующее фото">›</button>'+
+        '<div class="carousel-dots">'+dots+'</div>'+
+      '</div>'+
+      '<div class="pcard-body">'+
+        '<div class="pcard-head">'+
+          '<div><h3>'+a.n+'. '+a.addr+'</h3><p class="district">'+a.district+'</p></div>'+
+          '<div class="pcard-price"><span class="day">'+a.price_day+'</span><span class="total">'+a.price_label+': '+a.price_total+'</span></div>'+
+        '</div>'+
+        '<div class="info-grid">'+
+          '<div><div class="k">Депозит</div>'+a.deposit+'</div>'+
+          '<div><div class="k">Охрана / доступ</div>'+a.security+'</div>'+
+          '<div class="full"><div class="k">Инфраструктура</div>'+a.infra+'</div>'+
+          '<div><div class="k">Спортзал ≤1 км</div>'+a.gym+'</div>'+
+          '<div><div class="k">Рабочее место</div>'+a.work+'</div>'+
+          '<div class="full"><div class="k">Условия и оснащение</div>'+a.cond+'</div>'+
+        '</div>'+
+        '<div class="pros-cons">'+
+          '<div class="pros"><b>Плюсы</b>'+a.pros+'</div>'+
+          '<div class="cons"><b>Минусы</b>'+a.cons+'</div>'+
+        '</div>'+
+        '<div class="mini-map" id="map-'+a.n+'" role="img" aria-label="Карта: '+a.addr+'"></div>'+
+        '<a class="card-cta" href="'+a.url+'" target="_blank" rel="noopener noreferrer">Открыть объявление на Krisha.kz →</a>'+
+      '</div>';
+    grid.appendChild(card);
+
+    // carousel logic
+    var track = card.querySelector('.carousel-track');
+    var dotBtns = card.querySelectorAll('.carousel-dots button');
+    var counter = card.querySelector('[data-counter]');
+    var count = a.photos.length;
+    var idx = 0;
+    function go(i){
+      idx = (i + count) % count;
+      track.style.transform = 'translateX(-'+(idx*100)+'%)';
+      dotBtns.forEach(function(d,j){ d.classList.toggle('active', j===idx); });
+      counter.textContent = (idx+1)+'/'+count;
+    }
+    card.querySelector('.carousel-btn.prev').addEventListener('click', function(){ go(idx-1); });
+    card.querySelector('.carousel-btn.next').addEventListener('click', function(){ go(idx+1); });
+    dotBtns.forEach(function(d,j){ d.addEventListener('click', function(){ go(j); }); });
+
+    // basic swipe
+    var startX = null;
+    var carouselEl = card.querySelector('.carousel');
+    carouselEl.addEventListener('touchstart', function(e){ startX = e.touches[0].clientX; }, {passive:true});
+    carouselEl.addEventListener('touchend', function(e){
+      if(startX===null) return;
+      var dx = e.changedTouches[0].clientX - startX;
+      if(Math.abs(dx) > 40){ go(idx + (dx < 0 ? 1 : -1)); }
+      startX = null;
+    }, {passive:true});
+  });
+
+  // ---------- maps ----------
+  function safeLeaflet(fn){
+    try{ if(window.L) fn(); }catch(e){ /* map is a progressive enhancement */ }
+  }
+
+  safeLeaflet(function(){
+    var overview = L.map('overview-map', {scrollWheelZoom:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(overview);
+
+    var bounds = [];
+    APTS.forEach(function(a){
+      var lat = parseFloat(a.lat), lon = parseFloat(a.lon);
+      bounds.push([lat, lon]);
+      var marker = L.marker([lat, lon]).addTo(overview);
+      marker.bindPopup(
+        '<b>'+a.n+'. '+a.addr+'</b><br>'+a.price_day+'<br>'+
+        '<a href="'+a.url+'" target="_blank" rel="noopener noreferrer">Открыть на Krisha.kz →</a>'
+      );
+    });
+    overview.fitBounds(bounds, {padding:[30,30]});
+  });
+
+  APTS.forEach(function(a){
+    safeLeaflet(function(){
+      var lat = parseFloat(a.lat), lon = parseFloat(a.lon);
+      var m = L.map('map-'+a.n, {scrollWheelZoom:false, zoomControl:true, dragging:true}).setView([lat, lon], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(m);
+      L.marker([lat, lon]).addTo(m).bindPopup(a.addr);
+    });
+  });
+
+  // ---------- micro-interactions (Framer Motion) ----------
+  (async function(){
+    try{
+      var mod = await import('https://cdn.jsdelivr.net/npm/motion@11/+esm');
+      var animate = mod.animate;
+      if(!animate) return;
+      document.querySelectorAll('.card-cta, .carousel-btn').forEach(function(el){
+        el.addEventListener('pointerdown', function(){ animate(el, {scale:0.94}, {duration:0.12}); });
+        el.addEventListener('pointerup', function(){ animate(el, {scale:1}, {duration:0.2}); });
+        el.addEventListener('pointerleave', function(){ animate(el, {scale:1}, {duration:0.2}); });
+      });
+    }catch(e){ /* purely decorative, safe to skip */ }
+  })();
+
+})();
+</script>
+</body>
+</html>
